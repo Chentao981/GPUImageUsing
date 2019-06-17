@@ -54,22 +54,9 @@
     ARGBToNV12(self.rawBytesForImage, width * 4, yuv_bytes, width, yuv_bytes + w_x_h, width, width, height);
     [self unlockFramebufferAfterReading];
     
-    NSData *yuvData = [NSData dataWithBytesNoCopy:yuv_bytes length:yuv_len];
+    //    NSData *yuvData = [NSData dataWithBytesNoCopy:yuv_bytes length:yuv_len];
+    //    NSLog(@"yuvData.length:%d width:%d height:%d",yuvData.length,width,height);
 
-    NSLog(@"yuvData.length:%d width:%d height:%d",yuvData.length,width,height);
-    
-    
-    
-//    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-//    NSString *documentsDirectory = [paths objectAtIndex:0];
-//    NSString *filepath= [documentsDirectory stringByAppendingPathComponent:@"test.yuv"];
-//    [yuvData writeToFile:filepath atomically:YES];
-    
-    /////////////////
-    
-//    int sYLineSize = packet.yLineSize;
-//    int sULineSize = packet.uLineSize;
-//    int sVLineSize = packet.vLineSize;
     //////////////////////////////////////
     CVPixelBufferRef pxbuffer;
     CVReturn rc;
@@ -91,17 +78,8 @@
         uint8_t *y_copyBaseAddress = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 0);
         uint8_t *uv_copyBaseAddress = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 1);
 
-
-        //NSLog(@"%@%@%@",y_copyBaseAddress,u_copyBaseAddress,v_copyBaseAddress);
-        
-        
-//        int dYLineSize = (int)CVPixelBufferGetBytesPerRowOfPlane(pxbuffer, 0);
-//        int dULineSize = (int)CVPixelBufferGetBytesPerRowOfPlane(pxbuffer, 1);
-//        int dVLineSize = (int)CVPixelBufferGetBytesPerRowOfPlane(pxbuffer, 2);
-
-        memcpy(y_copyBaseAddress, yuvData.bytes,              w_x_h);
-        memcpy(uv_copyBaseAddress, yuvData.bytes + w_x_h, w_x_h*0.5);
-
+        memcpy(y_copyBaseAddress, yuv_bytes,              w_x_h);
+        memcpy(uv_copyBaseAddress, yuv_bytes + w_x_h, w_x_h*0.5);
 
         rc = CVPixelBufferUnlockBaseAddress(pxbuffer, 0);
         if (rc != 0) {
@@ -136,72 +114,5 @@
     NSLog(@"encoder data length:%d %@",data.length,[NSThread currentThread]);
     [self.delegate dataOutputHandler:self h264Data:data];
 }
-
-////YUV数据转CVPixelBuffer（不是必须）
-//- (void)didReceivedYUV420pPacket:(APYUV420pPacket)packet {
-//    int sYLineSize = packet.yLineSize;
-//    int sULineSize = packet.uLineSize;
-//    int sVLineSize = packet.vLineSize;
-//    int sYSize = sYLineSize * packet.height;
-//    int sUSize = sULineSize * packet.height/2;
-//    int sVSize = sVLineSize * packet.height/2;
-//
-//    int dWidth = packet.width;
-//    int dHeight = packet.height;
-//
-//    CVPixelBufferRef pxbuffer;
-//    CVReturn rc;
-//
-//    rc = CVPixelBufferCreate(NULL, dWidth, dHeight, kCVPixelFormatType_420YpCbCr8PlanarFullRange, NULL, &pxbuffer);
-//    if (rc != 0) {
-//        NSLog(@"CVPixelBufferCreate failed %d", rc);
-//        if (pxbuffer) { CFRelease(pxbuffer); }
-//        return;
-//    }
-//
-//    rc = CVPixelBufferLockBaseAddress(pxbuffer, 0);
-//
-//    if (rc != 0) {
-//        NSLog(@"CVPixelBufferLockBaseAddress falied %d", rc);
-//        if (pxbuffer) { CFRelease(pxbuffer); }
-//        return;
-//    } else {
-//        uint8_t *y_copyBaseAddress = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 0);
-//        uint8_t *u_copyBaseAddress= (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 1);
-//        uint8_t *v_copyBaseAddress= (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 2);
-//
-//        int dYLineSize = (int)CVPixelBufferGetBytesPerRowOfPlane(pxbuffer, 0);
-//        int dULineSize = (int)CVPixelBufferGetBytesPerRowOfPlane(pxbuffer, 1);
-//        int dVLineSize = (int)CVPixelBufferGetBytesPerRowOfPlane(pxbuffer, 2);
-//
-//        memcpy(y_copyBaseAddress, packet.dataBuffer,                    sYSize);
-//        memcpy(u_copyBaseAddress, packet.dataBuffer + sYSize,           sUSize);
-//        memcpy(v_copyBaseAddress, packet.dataBuffer + sYSize + sUSize,  sVSize);
-//
-//
-//        rc = CVPixelBufferUnlockBaseAddress(pxbuffer, 0);
-//        if (rc != 0) {
-//            NSLog(@"CVPixelBufferUnlockBaseAddress falied %d", rc);
-//        }
-//    }
-//
-//    CMVideoFormatDescriptionRef videoInfo = NULL;
-//    CMVideoFormatDescriptionCreateForImageBuffer(NULL, pxbuffer, &videoInfo);
-//
-//    CMSampleTimingInfo timing = {kCMTimeInvalid, kCMTimeInvalid, kCMTimeInvalid};
-//    CMSampleBufferRef dstSampleBuffer = NULL;
-//    rc = CMSampleBufferCreateForImageBuffer(kCFAllocatorDefault, pxbuffer, YES, NULL, NULL, videoInfo, &timing, &dstSampleBuffer);
-//
-//    if (rc) {
-//        NSLog(@"CMSampleBufferCreateForImageBuffer error: %d", rc);
-//    } else {
-//        [self.txLivePublisher sendVideoSampleBuffer:dstSampleBuffer];
-//    }
-//
-//    if (pxbuffer) { CFRelease(pxbuffer); }
-//    if (videoInfo) { CFRelease(videoInfo); }
-//    if (dstSampleBuffer) { CFRelease(dstSampleBuffer); }
-//}
-
 
 @end
