@@ -65,6 +65,7 @@
     if (rc != 0) {
         NSLog(@"CVPixelBufferCreate failed %d", rc);
         if (pxbuffer) { CFRelease(pxbuffer); }
+        free(yuv_bytes);
         return;
     }
 
@@ -73,6 +74,7 @@
     if (rc != 0) {
         NSLog(@"CVPixelBufferLockBaseAddress falied %d", rc);
         if (pxbuffer) { CFRelease(pxbuffer); }
+        free(yuv_bytes);
         return;
     } else {
         uint8_t *y_copyBaseAddress = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 0);
@@ -103,6 +105,8 @@
         [self.h264Encoder encode:dstSampleBuffer];
     }
 
+    free(yuv_bytes);
+    
     if (pxbuffer) { CFRelease(pxbuffer); }
     if (videoInfo) { CFRelease(videoInfo); }
     if (dstSampleBuffer) { CFRelease(dstSampleBuffer); }
