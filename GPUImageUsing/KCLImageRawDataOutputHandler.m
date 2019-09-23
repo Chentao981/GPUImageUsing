@@ -11,7 +11,9 @@
 #import "KCLH264Encoder.h"
 
 
-#define aw_stride(wid) ((wid % 16 != 0) ? ((wid) + 16 - (wid) % 16): (wid))
+//#define aw_stride(wid) ((wid % 16 != 0) ? ((wid) + 16 - (wid) % 16): (wid))
+#define aw_stride(wid) ((wid % 4 != 0) ? ((wid) + 4 - (wid) % 4): (wid))
+
 
 @interface KCLImageRawDataOutputHandler ()<KCLH264EncoderDelegate>
 
@@ -40,6 +42,9 @@
     int width = aw_stride((int)imageSize.width);
     //图像高度
     int height = imageSize.height;
+    
+    NSLog(@"width:%d,height:%d",width,height);
+    
     //宽*高
     int w_x_h = width * height;
     //yuv数据长度 = (宽 * 高) * 3 / 2

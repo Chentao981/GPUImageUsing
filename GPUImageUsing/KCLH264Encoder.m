@@ -9,6 +9,7 @@
 #import "KCLH264Encoder.h"
 #import <VideoToolbox/VideoToolbox.h>
 #import <AVFoundation/AVFoundation.h>
+#import "KCLLogger.h"
 
 @implementation KCLH264Encoder{
     VTCompressionSessionRef encodingSession;
@@ -77,7 +78,7 @@
                                                           &flags);
     
     if (noErr != statusCode) {
-        NSLog(@"H264: VTCompressionSessionEncodeFrame failed with %d", (int)statusCode);
+        KCLLogError(@"H264: VTCompressionSessionEncodeFrame failed with %d", (int)statusCode);
         [self destroyEncodingSession];
     }
 }
@@ -105,7 +106,7 @@ void encodeOutputDataCallback(void *outputCallbackRefCon, void *sourceFrameRefCo
     bool isKeyFrame = !CFDictionaryContainsKey((CFDictionaryRef)CFArrayGetValueAtIndex(CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, true), 0), (const void *)kCMSampleAttachmentKey_NotSync);
     
     if (isKeyFrame){
-        NSLog(@"VEVideoEncoder::编码了一个关键帧");
+        KCLLogDebug(@"VEVideoEncoder::编码了一个关键帧");
         CMFormatDescriptionRef formatDescriptionRef = CMSampleBufferGetFormatDescription(sampleBuffer);
         
         // 关键帧需要加上SPS、PPS信息
@@ -147,14 +148,13 @@ void encodeOutputDataCallback(void *outputCallbackRefCon, void *sourceFrameRefCo
     status = CMBlockBufferGetDataPointer(blockBuffer, 0, &length, &totalLength, &dataPointer);
     if (noErr != status)
     {
-        NSLog(@"VEVideoEncoder::CMBlockBufferGetDataPointer Error : %d!", (int)status);
+        KCLLogError(@"VEVideoEncoder::CMBlockBufferGetDataPointer Error : %d!", (int)status);
         return;
     }
     
     size_t bufferOffset = 0;
     static const int avcHeaderLength = 4;
-    while (bufferOffset < totalLength - avcHeaderLength)
-    {
+    while (bufferOffset < totalLength - avcHeaderLength){
         // 读取 NAL 单元长度
         uint32_t nalUnitLength = 0;
         memcpy(&nalUnitLength, dataPointer + bufferOffset, avcHeaderLength);

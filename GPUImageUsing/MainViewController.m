@@ -9,7 +9,6 @@
 #import "MainViewController.h"
 #import <GPUImage/GPUImage.h>
 #import "DSoftLightBlendFilter.h"
-//#import "GPUImageBeautifyFilter.h"
 #import "GPUImageBeautyFilter.h"
 #import "KCLImageRawDataOutputHandler.h"
 #import "KCLH264Decoder.h"
@@ -24,18 +23,11 @@
 
 @property(nonatomic,strong)GPUImageFilterGroup *filterGroup;
 
-
-
 @property(nonatomic,strong)GPUImageBeautyFilter *beautifyFilter;
-
-//@property(nonatomic,strong)GPUImageBeautifyFilter *beautifyFilter;
 @property(nonatomic,strong)DSoftLightBlendFilter *blendFilter;
 @property(nonatomic,strong)GPUImageTransformFilter *transformFilter;
 
-
 @property(nonatomic,strong)KCLImageRawDataOutputHandler *imageRawDataOutputHandler;
-
-
 
 /** 视频流播放器 */
 @property (nonatomic, strong) KCLOpenGLImageView *playLayer;
@@ -69,13 +61,7 @@
     
     self.filterGroup = [[GPUImageFilterGroup alloc]init];
     
-//    self.beautifyFilter = [[GPUImageBeautifyFilter alloc]initWithDegree:0.7];
     self.beautifyFilter = [[GPUImageBeautyFilter alloc]init];
-//    self.beautifyFilter.toneLevel = 0.9;
-//    self.beautifyFilter.beautyLevel = 0.4;
-//    self.beautifyFilter.brightLevel = 0.25;
-    
-    
     [self.filterGroup addFilter:self.beautifyFilter];
     
     self.blendFilter = [[DSoftLightBlendFilter alloc]init];
@@ -107,8 +93,6 @@
     [self.videoView setInputRotation:kGPUImageFlipHorizonal atIndex:0];
     self.videoView.fillMode = kGPUImageFillModePreserveAspectRatioAndFill;
     [self.view addSubview:self.videoView];
-
-//    [self.filterGroup addTarget:self.videoView];
     
     [self.transformFilter addTarget:self.videoView];
     
