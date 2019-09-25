@@ -88,7 +88,7 @@
     CGFloat videoViewX = 5;
     CGFloat videoViewY = 50;
     
-    self.videoView = [[GPUImageView alloc]initWithFrame:CGRectMake(videoViewX, videoViewY, videoViewW, videoViewH)];
+    self.videoView = [[GPUImageView alloc]initWithFrame:CGRectMake(videoViewX, videoViewY, 2*videoViewW, 2*videoViewH)];
     self.videoView.backgroundColor = [UIColor blackColor];
     [self.videoView setInputRotation:kGPUImageFlipHorizonal atIndex:0];
     self.videoView.fillMode = kGPUImageFillModePreserveAspectRatioAndFill;
@@ -98,12 +98,13 @@
     
     //////////////////////////
     
-    self.imageRawDataOutputHandler = [[KCLImageRawDataOutputHandler alloc]initWithImageSize:CGSizeMake(videoViewW, videoViewH) resultsInBGRAFormat:YES];
+    self.imageRawDataOutputHandler = [[KCLImageRawDataOutputHandler alloc]initWithImageSize:CGSizeMake(2*videoViewW, 2*videoViewH) resultsInBGRAFormat:YES];
     self.imageRawDataOutputHandler.delegate = self;
     [self.filterGroup addTarget:self.imageRawDataOutputHandler];
     
     ///////////////////////////
     self.playLayer = [[KCLOpenGLImageView alloc] initWithFrame:CGRectMake(CGRectGetMaxX(self.videoView.frame)+10 , videoViewY, videoViewW, videoViewH)];
+//    self.playLayer = [[KCLOpenGLImageView alloc] initWithFrame:CGRectMake(CGRectGetMaxX(self.videoView.frame)+10 , videoViewY, 100, 100)];
     self.playLayer.backgroundColor = [UIColor blackColor];
     [self.view addSubview:self.playLayer];
     //////////////////////////
@@ -199,14 +200,172 @@
     [self.h264Decoder pushData:data timeLine:0];
 }
 
+static int i = 0;
+
 #pragma mark - H264解码回调
 -(void)h264DecoderReceiveFrameData:(KCLH264Decoder *)decoder{
     KCLVideoFrameData *frameData = [decoder.frameDatas firstObject];
     if (frameData) {
-        //[self.playLayer inputPixelBuffer:frameData.pixelBuffer];
-        [self.playLayer renderImageBuffer:frameData.pixelBuffer];
+        //[self.playLayer renderImageBuffer:frameData.pixelBuffer];
+        
+        size_t frameWidth = CVPixelBufferGetWidth(frameData.pixelBuffer);
+        size_t frameHeight = CVPixelBufferGetHeight(frameData.pixelBuffer);
+        
+        int yuvDataLength = frameWidth*frameHeight*3/2;
+        char *yuvData = malloc(yuvDataLength);
+        pixelBufferNV21ToYUV(frameData.pixelBuffer,yuvData);
+        
+//        i++;
+//        /////////////
+//        if (i==40) {
+//            NSData *desData = [NSData dataWithBytes:yuvData length:yuvDataLength];
+//            NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+//            NSString *documentsDirectory = [paths objectAtIndex:0];
+//
+//            NSString *clipFilePath = [documentsDirectory stringByAppendingPathComponent:@"test.yuv"];
+//
+//            [[NSFileManager defaultManager] createFileAtPath:clipFilePath contents:nil attributes:nil];
+//
+//            NSFileHandle *fileHandler = [NSFileHandle fileHandleForWritingAtPath:clipFilePath];
+//
+//            [fileHandler writeData:desData];
+//
+//            [fileHandler closeFile];
+//        }
+//
+//        /////////////
+        
+        
+        int corpX = 4;
+        int corpY = 4;
+        int corpWidth = 144;
+        int corpHeight = 144;
+
+        int corpYUVDataLength = corpWidth*corpHeight*3/2;
+        char *corpYUVData = malloc(corpYUVDataLength);
+        corpNv21YUV(yuvData, frameWidth, frameHeight, corpYUVData, corpX, corpY, corpWidth, corpHeight);
+
+//                i++;
+//                /////////////
+//                if (i==40) {
+//                    NSData *desData = [NSData dataWithBytes:corpYUVData length:corpYUVDataLength];
+//                    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+//                    NSString *documentsDirectory = [paths objectAtIndex:0];
+//
+//                    NSString *clipFilePath = [documentsDirectory stringByAppendingPathComponent:@"test.yuv"];
+//
+//                    [[NSFileManager defaultManager] createFileAtPath:clipFilePath contents:nil attributes:nil];
+//
+//                    NSFileHandle *fileHandler = [NSFileHandle fileHandleForWritingAtPath:clipFilePath];
+//
+//                    [fileHandler writeData:desData];
+//
+//                    [fileHandler closeFile];
+//                }
+//
+//                /////////////
+        
+        
+        //////////////////
+        int w_x_h = corpWidth*corpHeight;
+
+        CVPixelBufferRef pxbuffer;
+        CVReturn rc;
+        rc = CVPixelBufferCreate(NULL, corpWidth, corpHeight, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, NULL, &pxbuffer);
+        if (rc != 0) {
+            NSLog(@"CVPixelBufferCreate failed %d", rc);
+            if (pxbuffer) { CFRelease(pxbuffer); }
+        }
+        rc = CVPixelBufferLockBaseAddress(pxbuffer, 0);
+        if (rc != 0) {
+            NSLog(@"CVPixelBufferLockBaseAddress falied %d", rc);
+            if (pxbuffer) {
+                CFRelease(pxbuffer);
+            }
+        } else {
+            uint8_t *y_copyBaseAddress = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 0);
+            uint8_t *uv_copyBaseAddress = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pxbuffer, 1);
+
+            memcpy(y_copyBaseAddress, corpYUVData,              w_x_h);
+            memcpy(uv_copyBaseAddress, corpYUVData + w_x_h, w_x_h*0.5);
+
+            rc = CVPixelBufferUnlockBaseAddress(pxbuffer, 0);
+            if (rc != 0) {
+                NSLog(@"CVPixelBufferUnlockBaseAddress falied %d", rc);
+            }
+        }
+
+        [self.playLayer renderImageBuffer:pxbuffer];
+
+        CFRelease(pxbuffer);
+
+        //////////////////
+
+        free(corpYUVData);
+        free(yuvData);
+        
         [decoder.frameDatas removeObjectAtIndex:0];
     }
+}
+
+int pixelBufferNV21ToYUV(CVPixelBufferRef pixelBuffer,char *yuvData){
+    CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+    if (CVPixelBufferIsPlanar(pixelBuffer)) {
+        size_t w = CVPixelBufferGetWidth(pixelBuffer);
+        size_t h = CVPixelBufferGetHeight(pixelBuffer);
+        
+        size_t d = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+        char* src = (char*) CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
+        char* dst = yuvData;
+        
+        for (unsigned int rIdx = 0; rIdx < h; ++rIdx, dst += w, src += d) {
+            memcpy(dst, src, w);
+        }
+        
+        d = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+        src = (char *) CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
+        
+        h = h >> 1;
+        for (unsigned int rIdx = 0; rIdx < h; ++rIdx, dst += w, src += d) {
+            memcpy(dst, src, w);
+        }
+    }
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    return 0;
+}
+
+
+int corpNv21YUV(const char* sourceYUV,const int sourceWidth,const int sourceHeight,char* destYUV,const int destX,const int destY,const int destWidth,const int destHeight){
+
+    const char* pNv21Source0 = sourceYUV;
+    int i = 0;
+
+    //关键二之一。
+    //取整。估计不同平台要求取整范围有差异。
+    //这样计算的结果，有可能差一个像素。宽高最好对应调整。
+    int clipLeft = (int)(destX+1)  / 2 * 2;
+    int clipTop  = (int)(destY +1)  / 2 * 2;
+
+    //移动到指定位置
+    pNv21Source0 += clipTop * sourceWidth + clipLeft;
+
+    //复制Y
+    for (i=0; i<destHeight; i++){
+        memcpy(destYUV, pNv21Source0, destWidth);
+        pNv21Source0 += sourceWidth;
+        destYUV    += destWidth;
+    }
+
+    //复制U/V
+    pNv21Source0  = sourceYUV + sourceWidth*sourceHeight;
+    pNv21Source0 += (clipTop * sourceWidth/2 + clipLeft);
+    //关键二之二：
+    for (i=0; i<destHeight/2; i++){
+        memcpy(destYUV, pNv21Source0, destWidth);
+        pNv21Source0 += sourceWidth;
+        destYUV    += destWidth;
+    }
+    return 0;
 }
 
 @end
